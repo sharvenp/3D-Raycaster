@@ -4,8 +4,16 @@ import math
 import time
 from PIL import Image
 
+import json
+
+# Global Stuff
 rad = math.radians
 deg = math.degrees
+
+settings_data = None
+
+with open('settings.json') as json_file:  
+    settings_data = json.load(json_file)
 
 class Player():
 
@@ -19,8 +27,8 @@ class Player():
         self.x = x
         self.y = y
 
-        self.movement_speed = 2
-        self.angular_speed = 7.5
+        self.movement_speed = settings_data['movement_speed']
+        self.angular_speed = settings_data['angular_speed']
 
         self.curr_dx = 0
         self.curr_dy = 0
@@ -43,26 +51,27 @@ class Renderer:
     Handles all display stuff
     """
 
-    def __init__(self, height, fov_angle, fov_radius, scale=1):
+    def __init__(self):
 
-        self.FRAME_RATE = 60
+        self.FRAME_RATE = settings_data['frame_rate']
 
-        self.WIDTH = round(math.sqrt(2) * fov_radius * (1 - (math.cos(rad(fov_angle)))))
-        self.HEIGHT = height
-        self.WALL_SCALING = self.HEIGHT//2
-        self.TOP_DOWN_SCALE = scale
+        self.WIDTH = settings_data['screen_width']
+        self.HEIGHT = settings_data['screen_height']
+        self.WALL_SCALING = settings_data['wall_scaling']
+        self.TOP_DOWN_SCALE = settings_data['top_down_view_window_scaling']
 
-        self.FLOOR_COLOR = (30, 30, 30)
-        self.CEILING_COLOR = (70, 0, 0)
-        self.WALL_COLOR = (255, 255, 255)
-        self.PLAYER_COLOR = (255, 0, 0)
-        self.RAYCAST_LINE_COLOR = (102, 0, 166)
+        self.FLOOR_COLOR = tuple(settings_data['floor_color'])
+        self.CEILING_COLOR = tuple(settings_data['ceiling_color'])
+        self.WALL_COLOR = tuple(settings_data['wall_color'])
+        self.PLAYER_COLOR = tuple(settings_data['player_color'])
+        self.RAYCAST_LINE_COLOR = tuple(settings_data['raycast_line_color'])
+
+        self.fov_angle = settings_data['fov_angle']
+        self.fov_radius = settings_data['fov_radius']
+        self.num_casts = settings_data['number_of_raycasts']
+        self.raycast_step = self.fov_angle/(self.num_casts)
 
         self.level_map = []
-
-        self.fov_angle = fov_angle
-        self.fov_radius = fov_radius
-        self.raycast_step = fov_angle/(90)
 
         print("Loading Map...")
         im = Image.open('data/map.png')
@@ -141,6 +150,9 @@ class Renderer:
 
             if c >= self.level_width or r >= self.level_height or r < 0 or c < 0:
                 break
+            
+            if self.get_distance(x, y, c, r) > self.fov_radius:
+                break
 
             if self.level_map[r][c] != 0 and (x, y) != (c, r):
                 new_blocks.append(block)
@@ -208,14 +220,13 @@ class Renderer:
 
                 # Render 3D
                 i = 0
-                phi = (player.angle + self.fov_angle//2) % 360
-                # rect_width = self.fov_radius * math.sin(rad(self.raycast_step))
-                rect_width = self.WIDTH // (self.fov_angle//self.raycast_step)
+                phi = (player.angle - self.fov_angle//2) % 360
+                rect_width = self.WIDTH // (self.num_casts)
                 
-                while phi != (player.angle - self.fov_angle//2) % 360:
+                while phi != (player.angle + self.fov_angle//2) % 360:
                     hit = self.cast_ray(player.x, player.y, phi)[-1]
                     d = self.get_distance(player.x, player.y, hit[0], hit[1])
-                    if d:
+                    if d and self.level_map[hit[1]][hit[0]] == 1:
                         p = d * math.cos(rad(phi))
                         wall_height = (self.WALL_SCALING / p)
 
@@ -224,20 +235,16 @@ class Renderer:
                         elif wall_height < 0:
                             wall_height = 0
 
-                        brightness = 1 - (p / self.fov_radius)
-                        
-                        if brightness > 1:
-                            brightness = 1
+                        brightness = (1 - d/self.fov_radius)
 
                         c = (round(self.WALL_COLOR[0] * brightness), round(self.WALL_COLOR[1] * brightness), round(self.WALL_COLOR[2] * brightness))
                         pg.draw.rect(screen, c, (rect_width * i, (self.HEIGHT - wall_height)//2, rect_width, wall_height))
 
                     i += 1
-                    phi -= self.raycast_step
+                    phi += self.raycast_step
                     phi %= 360
 
             else: # Top Down View
-                
 
                 # Draw Raycast Lines
                 phi = (player.angle + self.fov_angle//2) % 360
@@ -262,12 +269,7 @@ class Renderer:
             pg.display.flip() 
 
 
-def main():
-    
-    r = Renderer(500, 90, 500, 3)
-    r.run()
-
-
 if __name__ == "__main__":
-    main()
+    r = Renderer()
+    r.run()
     

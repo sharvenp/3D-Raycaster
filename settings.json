@@ -1,0 +1,19 @@
+{
+    "movement_speed" : 2,
+    "angular_speed" : 7.5,
+
+    "frame_rate" : 60,
+    "screen_width" : 800,
+    "screen_height" : 500,
+    "wall_scaling" : 200,
+    "top_down_view_window_scaling" : 3,
+    "fov_angle" : 90,
+    "fov_radius" : 60,
+    "number_of_raycasts" : 64,
+
+    "floor_color" : [30, 30, 30],
+    "ceiling_color" : [70, 0, 0],
+    "wall_color" : [255, 255, 255],
+    "player_color" : [255, 0, 0],
+    "raycast_line_color" : [102, 0, 166]
+}
