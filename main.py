@@ -69,7 +69,7 @@ class Renderer:
         self.fov_angle = settings_data['fov_angle']
         self.fov_radius = settings_data['fov_radius']
         self.num_casts = settings_data['number_of_raycasts']
-        self.raycast_step = self.fov_angle/(self.num_casts)
+        self.raycast_step = self.fov_angle/self.num_casts
 
         self.level_map = []
 
@@ -94,7 +94,7 @@ class Renderer:
 
         return math.sqrt(((x1 - x0)**2) + ((y1 - y0)**2))
 
-    def get_blocks(self, x0, y0, x1, y1):
+    def _get_blocks(self, x0, y0, x1, y1):
         
         # Bresenham's line algorithm
 
@@ -137,7 +137,7 @@ class Renderer:
         dx = math.cos(rad(angle)) * self.fov_radius
         dy = math.sin(rad(angle)) * self.fov_radius
 
-        blocks = self.get_blocks(x, y, round(x + dx), round(y + dy))
+        blocks = self._get_blocks(x, y, round(x + dx), round(y + dy))
 
         new_blocks = []
 
@@ -167,7 +167,7 @@ class Renderer:
         pg.init()
         
         screen = pg.display.set_mode((self.WIDTH, self.HEIGHT))    
-        pg.display.set_caption('Raycasting')
+        pg.display.set_caption('Raycasting 3D Render')
         clock = pg.time.Clock()
                 
         x, y = self.level_width//2, self.level_height//2
@@ -191,7 +191,7 @@ class Renderer:
             if keys[pg.K_1]:
                 view = False
                 screen = pg.display.set_mode((self.WIDTH, self.HEIGHT))
-                pg.display.set_caption('Raycasting 3D Rendering')
+                pg.display.set_caption('Raycasting 3D Render')
             elif keys[pg.K_2]:
                 view = True
                 screen = pg.display.set_mode((self.level_width * self.TOP_DOWN_SCALE, self.level_height * self.TOP_DOWN_SCALE))    
@@ -218,29 +218,36 @@ class Renderer:
                 pg.draw.rect(screen, self.CEILING_COLOR, (0, 0, self.WIDTH, self.HEIGHT//2))
                 pg.draw.rect(screen, self.FLOOR_COLOR, (0, self.HEIGHT//2, self.WIDTH, self.HEIGHT//2))
 
-                # Render 3D
+                # Render 3D View
                 i = 0
-                phi = (player.angle - self.fov_angle//2) % 360
-                rect_width = self.WIDTH // (self.num_casts)
+                phi = (player.angle - (self.fov_angle//2)) % 360
+                rect_width = self.WIDTH//self.num_casts
                 
-                while phi != (player.angle + self.fov_angle//2) % 360:
+                while phi != (player.angle + (self.fov_angle//2)) % 360:
+                    
+                    i += 1
+                    
                     hit = self.cast_ray(player.x, player.y, phi)[-1]
                     d = self.get_distance(player.x, player.y, hit[0], hit[1])
+                    
                     if d and self.level_map[hit[1]][hit[0]] == 1:
-                        p = d * math.cos(rad(phi))
-                        wall_height = (self.WALL_SCALING / p)
+                        
+                        p = abs(d * math.cos(rad(phi)))
+                        # wall_height = (self.WALL_SCALING * (1 - (p/self.fov_radius)))
+                        wall_height = self.WALL_SCALING/p
 
-                        if wall_height > self.WALL_SCALING:
-                            wall_height = self.WALL_SCALING
-                        elif wall_height < 0:
-                            wall_height = 0
+                        # if wall_height > self.WALL_SCALING:
+                        #     wall_height = self.WALL_SCALING
+                        # elif wall_height < 0:
+                        #     wall_height = 0
 
-                        brightness = (1 - d/self.fov_radius)
+                        brightness = (1 - (p/self.fov_radius))
 
-                        c = (round(self.WALL_COLOR[0] * brightness), round(self.WALL_COLOR[1] * brightness), round(self.WALL_COLOR[2] * brightness))
+                        c = (round(self.WALL_COLOR[0] * brightness), 
+                             round(self.WALL_COLOR[1] * brightness), 
+                             round(self.WALL_COLOR[2] * brightness))
                         pg.draw.rect(screen, c, (rect_width * i, (self.HEIGHT - wall_height)//2, rect_width, wall_height))
 
-                    i += 1
                     phi += self.raycast_step
                     phi %= 360
 
